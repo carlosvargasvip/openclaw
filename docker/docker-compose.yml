@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Moltbot Docker Compose Setup
 # Replicates exe.dev architecture for self-hosted environments
 # 
@@ -9,7 +7,7 @@ version: '3.8'
 services:
   # Moltbot Gateway Service
   moltbot-gateway:
-    image: node:22-bookworm-slim
+    image: node:24-bookworm-slim
     container_name: moltbot-gateway
     restart: unless-stopped
     working_dir: /app
@@ -18,11 +16,15 @@ services:
     command: >
       sh -c "
         npm install -g moltbot@latest &&
-        moltbot gateway --verbose
+        mkdir -p /data/.clawdbot &&
+        if [ -f /config/clawdbot.json ]; then cp /config/clawdbot.json /data/.clawdbot/clawdbot.json; fi &&
+        /usr/local/bin/moltbot gateway --verbose
       "
     
     environment:
       - NODE_ENV=production
+      - HOME=/data
+      - PATH=/usr/local/bin:/usr/bin:/bin
       - CLAWDBOT_STATE_DIR=/data/.clawdbot
       - CLAWDBOT_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -33,8 +35,8 @@ services:
       - moltbot-data:/data/.clawdbot
       # Workspace for agent files
       - moltbot-workspace:/data/clawd
-      # Config file (optional - can override defaults)
-      - ./config/clawdbot.json:/data/.clawdbot/clawdbot.json:ro
+      # Config file (copied at startup)
+      - ./config/clawdbot.json:/config/clawdbot.json:ro
     
     # Only expose to internal network, nginx handles external traffic
     expose:
@@ -44,11 +46,11 @@ services:
       - moltbot-internal
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:18789/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
     
     # Resource limits
     deploy:
@@ -83,8 +85,7 @@ services:
       - moltbot-internal
     
     depends_on:
-      moltbot-gateway:
-        condition: service_healthy
+      - moltbot-gateway
     
     healthcheck:
       test: ["CMD", "nginx", "-t"]
@@ -94,7 +95,7 @@ services:
 
   # Optional: Moltbot CLI container for management
   moltbot-cli:
-    image: node:22-bookworm-slim
+    image: node:24-bookworm-slim
     container_name: moltbot-cli
     profiles:
       - cli
@@ -109,6 +110,7 @@ services:
     environment:
       - CLAWDBOT_STATE_DIR=/data/.clawdbot
       - CLAWDBOT_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
+      - PATH=/usr/local/bin:/usr/bin:/bin
     
     volumes:
       - moltbot-data:/data/.clawdbot

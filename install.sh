@@ -85,19 +85,19 @@ install_prerequisites() {
 }
 
 install_nodejs() {
-    print_step "Installing Node.js 22..."
+    print_step "Installing Node.js 24..."
     
     # Check if already installed
     if command -v node &> /dev/null; then
         NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [[ $NODE_VERSION -ge 22 ]]; then
+        if [[ $NODE_VERSION -ge 24 ]]; then
             print_info "Node.js $(node -v) already installed"
             return
         fi
     fi
     
-    # Install NodeSource repo for Node 22
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    # Install NodeSource repo for Node 24
+    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
     sudo apt-get install -y nodejs
     
     print_info "Node.js $(node -v) installed"
@@ -418,7 +418,7 @@ main() {
     
     echo ""
     echo "This script will install:"
-    echo "  • Node.js 22"
+    echo "  • Node.js 24"
     echo "  • Moltbot (Clawdbot) AI Assistant"
     echo "  • Nginx reverse proxy (ports 80, 8000 → 18789)"
     echo "  • Docker (optional, for sandboxing)"
