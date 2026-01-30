@@ -4,7 +4,7 @@
 # Replicates exe.dev setup for self-hosted environments
 # 
 # Gateway: ws://127.0.0.1:18789
-# Nginx Proxy: Listens on 80, 443, and 8000 → proxies to gateway
+# Nginx Proxy: Listens on 80 and 8000 → proxies to gateway
 #===============================================================================
 
 set -e
@@ -19,7 +19,6 @@ NC='\033[0m' # No Color
 # Configuration
 MOLTBOT_PORT=18789
 NGINX_HTTP_PORT=80
-NGINX_HTTPS_PORT=443
 NGINX_ALT_PORT=8000
 INSTALL_DIR="$HOME/.clawdbot"
 WORKSPACE_DIR="$HOME/clawd"
@@ -80,8 +79,6 @@ install_prerequisites() {
         openssl \
         gnupg \
         nginx \
-        certbot \
-        python3-certbot-nginx \
         ufw
     
     print_info "Prerequisites installed"
@@ -108,7 +105,7 @@ install_nodejs() {
 }
 
 install_docker() {
-    print_step "Installing Docker (optional, for sandboxing)..."
+    print_step "Installing Docker (for sandboxing)..."
     
     if command -v docker &> /dev/null; then
         print_info "Docker already installed"
@@ -170,15 +167,6 @@ generate_gateway_token() {
 
 configure_nginx() {
     print_step "Configuring Nginx reverse proxy..."
-    
-    # Get server IP or hostname
-    if [[ -n "$MOLTBOT_DOMAIN" ]]; then
-        SERVER_NAME="$MOLTBOT_DOMAIN"
-    else
-        SERVER_NAME=$(hostname -I | awk '{print $1}')
-        print_warn "No domain set. Using IP: $SERVER_NAME"
-        print_info "Set MOLTBOT_DOMAIN environment variable for a custom domain"
-    fi
     
     # Create nginx config
     sudo tee /etc/nginx/sites-available/moltbot.conf > /dev/null << 'NGINX_CONF'
@@ -259,8 +247,8 @@ configure_firewall() {
     print_step "Configuring firewall..."
     
     sudo ufw allow OpenSSH
-    sudo ufw allow 'Nginx Full'  # Allows 80 and 443
-    sudo ufw allow 8000/tcp      # Alternative port like exe.dev
+    sudo ufw allow 80/tcp
+    sudo ufw allow 8000/tcp
     
     # Enable firewall if not already
     sudo ufw --force enable
@@ -357,26 +345,6 @@ SERVICE
     print_info "Systemd user service created"
 }
 
-setup_ssl() {
-    print_step "Setting up SSL (optional)..."
-    
-    if [[ -z "$MOLTBOT_DOMAIN" ]]; then
-        print_warn "No domain set. Skipping SSL setup."
-        print_info "To enable SSL later, run:"
-        echo "  sudo certbot --nginx -d yourdomain.com"
-        return
-    fi
-    
-    # Update nginx server_name
-    sudo sed -i "s/server_name _;/server_name $MOLTBOT_DOMAIN;/" /etc/nginx/sites-available/moltbot.conf
-    sudo nginx -t && sudo systemctl reload nginx
-    
-    # Get SSL certificate
-    sudo certbot --nginx -d "$MOLTBOT_DOMAIN" --non-interactive --agree-tos --email "${SSL_EMAIL:-admin@$MOLTBOT_DOMAIN}"
-    
-    print_info "SSL certificate installed for $MOLTBOT_DOMAIN"
-}
-
 run_onboarding() {
     print_step "Running Moltbot onboarding..."
     
@@ -406,9 +374,6 @@ print_summary() {
     echo -e "${GREEN}Access URLs:${NC}"
     echo "  • HTTP:  http://$SERVER_IP/"
     echo "  • Alt:   http://$SERVER_IP:8000/"
-    if [[ -n "$MOLTBOT_DOMAIN" ]]; then
-        echo "  • HTTPS: https://$MOLTBOT_DOMAIN/"
-    fi
     echo ""
     
     echo -e "${GREEN}Gateway Token:${NC}"
@@ -455,7 +420,7 @@ main() {
     echo "This script will install:"
     echo "  • Node.js 22"
     echo "  • Moltbot (Clawdbot) AI Assistant"
-    echo "  • Nginx reverse proxy (ports 80, 443, 8000 → 18789)"
+    echo "  • Nginx reverse proxy (ports 80, 8000 → 18789)"
     echo "  • Docker (optional, for sandboxing)"
     echo "  • Firewall rules"
     echo "  • Systemd service"
@@ -482,15 +447,6 @@ main() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         install_docker
-    fi
-    
-    # Optional: SSL
-    if [[ -n "$MOLTBOT_DOMAIN" ]]; then
-        read -p "Set up SSL certificate for $MOLTBOT_DOMAIN? [Y/n] " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-            setup_ssl
-        fi
     fi
     
     # Optional: Run onboarding

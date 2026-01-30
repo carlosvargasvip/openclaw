@@ -65,11 +65,6 @@ check_api_key() {
     fi
 }
 
-create_ssl_dir() {
-    mkdir -p ssl
-    touch ssl/.gitkeep
-}
-
 start_services() {
     echo -e "${GREEN}Starting Moltbot services...${NC}"
     docker compose up -d
@@ -120,7 +115,6 @@ case "${1:-start}" in
         check_docker
         setup_env
         check_api_key
-        create_ssl_dir
         start_services
         show_info
         ;;

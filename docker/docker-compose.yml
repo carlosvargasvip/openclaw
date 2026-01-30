@@ -4,7 +4,7 @@ version: '3.8'
 # Replicates exe.dev architecture for self-hosted environments
 # 
 # Architecture:
-#   [Internet] → [Nginx:80,443,8000] → [Moltbot Gateway:18789]
+#   [Internet] → [Nginx:80,8000] → [Moltbot Gateway:18789]
 
 services:
   # Moltbot Gateway Service
@@ -69,8 +69,6 @@ services:
     ports:
       # Standard HTTP
       - "80:80"
-      # HTTPS (if using SSL)
-      - "443:443"
       # Alternative port (like exe.dev)
       - "8000:8000"
     
@@ -78,8 +76,6 @@ services:
       # Nginx configuration
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./config/moltbot-site.conf:/etc/nginx/conf.d/default.conf:ro
-      # SSL certificates (optional)
-      - ./ssl:/etc/nginx/ssl:ro
       # Logs
       - nginx-logs:/var/log/nginx
     

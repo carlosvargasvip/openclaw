@@ -12,14 +12,13 @@ This package replicates the **exe.dev** installation approach for Moltbot, allow
 │   │                    Nginx Reverse Proxy                    │  │
 │   │                                                          │  │
 │   │   Port 80  ────┐                                         │  │
-│   │   Port 443 ────┼──► http://127.0.0.1:18789              │  │
-│   │   Port 8000 ───┘    (Moltbot Gateway)                   │  │
+│   │   Port 8000 ───┴──► http://127.0.0.1:18789              │  │
+│   │                     (Moltbot Gateway)                    │  │
 │   │                                                          │  │
 │   │   Features:                                              │  │
 │   │   • WebSocket support                                    │  │
 │   │   • X-Forwarded-For headers                             │  │
 │   │   • 24hr timeout for long connections                   │  │
-│   │   • SSL/TLS termination (optional)                      │  │
 │   └──────────────────────────────────────────────────────────┘  │
 │                              │                                   │
 │                              ▼                                   │
@@ -41,8 +40,7 @@ This package replicates the **exe.dev** installation approach for Moltbot, allow
 │   External Access Options:                                       │
 │                                                                  │
 │   • LAN: http://192.168.x.x/ or http://192.168.x.x:8000/       │
-│   • Domain: https://moltbot.yourdomain.com/ (with SSL)         │
-│   • VPN/Tailscale: Recommended for security                    │
+│   • Your external reverse proxy handles SSL/HTTPS              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,12 +59,11 @@ chmod +x install.sh
 The script will:
 1. Install Node.js 22 and prerequisites
 2. Install Moltbot via npm
-3. Configure Nginx reverse proxy (ports 80, 443, 8000 → 18789)
+3. Configure Nginx reverse proxy (ports 80, 8000 → 18789)
 4. Generate a secure gateway token
 5. Set up firewall rules (UFW)
 6. Create systemd service
 7. (Optional) Set up Docker for sandboxing
-8. (Optional) Configure SSL with Let's Encrypt
 
 ### Option 2: Docker Compose
 
@@ -129,7 +126,6 @@ The Nginx config proxies these ports to the gateway:
 | External Port | Protocol | Notes |
 |--------------|----------|-------|
 | 80 | HTTP | Standard web access |
-| 443 | HTTPS | SSL/TLS (when configured) |
 | 8000 | HTTP | Alternative port (like exe.dev) |
 
 Key features:
@@ -137,30 +133,6 @@ Key features:
 - 24-hour timeout for long-lived agent sessions
 - Proper header forwarding for IP detection
 - No buffering for streaming responses
-
-### SSL/TLS Setup
-
-**With a domain (Let's Encrypt):**
-
-```bash
-# Set your domain
-export MOLTBOT_DOMAIN=moltbot.yourdomain.com
-
-# Run installer (includes SSL setup)
-./install.sh
-
-# Or manually:
-sudo certbot --nginx -d moltbot.yourdomain.com
-```
-
-**Self-signed certificate (for LAN use):**
-
-```bash
-# Generate self-signed cert
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout /etc/ssl/private/moltbot.key \
-  -out /etc/ssl/certs/moltbot.crt
-```
 
 ## Usage
 
@@ -251,12 +223,16 @@ http://192.168.x.x:8000/
 
 ### Remote Access Options
 
-**1. VPN/WireGuard (Recommended)**
+**1. External Reverse Proxy**
+- Your external proxy handles SSL termination
+- Forward to this server on port 80 or 8000
+
+**2. VPN/WireGuard**
 - Set up WireGuard on your VM
 - Connect from remote devices via VPN
 - Gateway stays on localhost, maximum security
 
-**2. Tailscale (Easiest)**
+**3. Tailscale**
 ```bash
 # Install Tailscale on VM
 curl -fsSL https://tailscale.com/install.sh | sh
@@ -266,7 +242,7 @@ sudo tailscale up
 http://100.x.x.x/
 ```
 
-**3. SSH Tunnel**
+**4. SSH Tunnel**
 ```bash
 # From your local machine
 ssh -L 8000:localhost:18789 user@your-server
@@ -274,11 +250,6 @@ ssh -L 8000:localhost:18789 user@your-server
 # Then access locally
 http://localhost:8000/
 ```
-
-**4. Public Domain (Use with caution)**
-- Point domain to your server
-- Configure SSL with Let's Encrypt
-- Ensure strong token authentication
 
 ## Security Best Practices
 
