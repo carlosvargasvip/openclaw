@@ -1,0 +1,94 @@
+{
+  "$schema": "https://docs.molt.bot/schemas/config.json",
+  
+  "gateway": {
+    "bind": "0.0.0.0",
+    "port": 18789,
+    
+    "trustedProxies": [
+      "127.0.0.1",
+      "::1",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+      "10.0.0.0/8"
+    ],
+    
+    "auth": {
+      "mode": "token",
+      "allowTailscale": false
+    },
+    
+    "controlUi": {
+      "enabled": true,
+      "allowInsecureAuth": false
+    }
+  },
+  
+  "agents": {
+    "defaults": {
+      "model": "anthropic/claude-sonnet-4-5",
+      
+      "sandbox": {
+        "mode": "non-main",
+        "scope": "session",
+        "workspaceAccess": "ro"
+      },
+      
+      "thinking": {
+        "enabled": true,
+        "budget": "medium"
+      }
+    }
+  },
+  
+  "providers": {
+    "anthropic": {
+      "enabled": true
+    },
+    "openai": {
+      "enabled": false
+    }
+  },
+  
+  "channels": {
+    "whatsapp": {
+      "enabled": false,
+      "allowFrom": []
+    },
+    "telegram": {
+      "enabled": false,
+      "botToken": ""
+    },
+    "discord": {
+      "enabled": false,
+      "token": ""
+    },
+    "slack": {
+      "enabled": false
+    }
+  },
+  
+  "tools": {
+    "exec": {
+      "enabled": true,
+      "timeout": 120000
+    },
+    "browser": {
+      "enabled": false
+    },
+    "elevated": {
+      "enabled": false,
+      "allowFrom": []
+    }
+  },
+  
+  "memory": {
+    "enabled": true,
+    "autoSave": true
+  },
+  
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+}
