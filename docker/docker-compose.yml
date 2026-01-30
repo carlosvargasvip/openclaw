@@ -7,18 +7,21 @@
 services:
   # Moltbot Gateway Service
   moltbot-gateway:
-    image: node:24-bookworm-slim
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: moltbot-gateway:local
     container_name: moltbot-gateway
     restart: unless-stopped
-    working_dir: /app
     
-    # Install moltbot and run gateway
+    # Copy config and run gateway
     command: >
       sh -c "
-        npm install -g moltbot@latest &&
         mkdir -p /data/.clawdbot &&
-        if [ -f /config/clawdbot.json ]; then cp /config/clawdbot.json /data/.clawdbot/clawdbot.json; fi &&
-        /usr/local/bin/moltbot gateway --verbose
+        if [ -f /config/clawdbot.json ] && [ ! -f /data/.clawdbot/clawdbot.json ]; then 
+          cp /config/clawdbot.json /data/.clawdbot/clawdbot.json
+        fi &&
+        moltbot gateway --verbose
       "
     
     environment:
@@ -35,7 +38,7 @@ services:
       - moltbot-data:/data/.clawdbot
       # Workspace for agent files
       - moltbot-workspace:/data/clawd
-      # Config file (copied at startup)
+      # Config file (copied at startup if not exists)
       - ./config/clawdbot.json:/config/clawdbot.json:ro
     
     # Only expose to internal network, nginx handles external traffic
@@ -44,13 +47,6 @@ services:
     
     networks:
       - moltbot-internal
-    
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:18789/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
     
     # Resource limits
     deploy:
@@ -95,17 +91,13 @@ services:
 
   # Optional: Moltbot CLI container for management
   moltbot-cli:
-    image: node:24-bookworm-slim
+    image: moltbot-gateway:local
     container_name: moltbot-cli
     profiles:
       - cli
-    working_dir: /app
+    working_dir: /data
     
-    command: >
-      sh -c "
-        npm install -g moltbot@latest &&
-        exec bash
-      "
+    command: bash
     
     environment:
       - CLAWDBOT_STATE_DIR=/data/.clawdbot
