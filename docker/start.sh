@@ -1,6 +1,6 @@
 #!/bin/bash
 #===============================================================================
-# Moltbot Docker Quick Start Script
+# OpenClaw Docker Quick Start Script
 #===============================================================================
 
 set -e
@@ -18,7 +18,7 @@ cd "$SCRIPT_DIR"
 print_banner() {
     echo -e "${BLUE}"
     echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║     🦞 Moltbot Docker Quick Start                             ║"
+    echo "║     🦞 OpenClaw Docker Quick Start                            ║"
     echo "╚═══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
@@ -66,11 +66,12 @@ check_api_key() {
 }
 
 start_services() {
-    echo -e "${GREEN}Starting Moltbot services...${NC}"
+    echo -e "${GREEN}Pulling and starting OpenClaw services...${NC}"
+    docker compose pull
     docker compose up -d
     
     echo ""
-    echo -e "${GREEN}Waiting for services to be healthy...${NC}"
+    echo -e "${GREEN}Waiting for services to start...${NC}"
     sleep 10
     
     docker compose ps
@@ -82,7 +83,7 @@ show_info() {
     
     echo ""
     echo -e "${BLUE}╔═══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║                    Moltbot is Running!                         ║${NC}"
+    echo -e "${BLUE}║                    OpenClaw is Running!                        ║${NC}"
     echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     
@@ -103,8 +104,9 @@ show_info() {
     echo "  View logs:        docker compose logs -f"
     echo "  Stop services:    docker compose down"
     echo "  Restart:          docker compose restart"
-    echo "  CLI access:       docker compose run --rm moltbot-cli"
-    echo "  Shell access:     docker compose exec moltbot-gateway bash"
+    echo "  CLI access:       docker compose run --rm openclaw-cli"
+    echo "  Shell access:     docker compose exec openclaw-gateway bash"
+    echo "  Dashboard URL:    docker compose run --rm openclaw-cli node dist/index.js dashboard --no-open"
     echo ""
 }
 
@@ -120,11 +122,11 @@ case "${1:-start}" in
         ;;
     stop)
         docker compose down
-        echo "Moltbot stopped"
+        echo "OpenClaw stopped"
         ;;
     restart)
         docker compose restart
-        echo "Moltbot restarted"
+        echo "OpenClaw restarted"
         ;;
     logs)
         docker compose logs -f
@@ -133,10 +135,21 @@ case "${1:-start}" in
         docker compose ps
         ;;
     cli)
-        docker compose run --rm moltbot-cli
+        docker compose run --rm openclaw-cli
+        ;;
+    build)
+        echo "Pulling latest OpenClaw image..."
+        docker compose pull
+        ;;
+    onboard)
+        echo "Running OpenClaw onboarding..."
+        docker compose run --rm openclaw-cli onboard
+        ;;
+    dashboard)
+        docker compose run --rm openclaw-cli dashboard --no-open
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|logs|status|cli}"
+        echo "Usage: $0 {start|stop|restart|logs|status|cli|build|onboard|dashboard}"
         exit 1
         ;;
 esac

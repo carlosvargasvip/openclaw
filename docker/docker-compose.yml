@@ -1,52 +1,46 @@
-# Moltbot Docker Compose Setup
+# OpenClaw Docker Compose Setup
 # Replicates exe.dev architecture for self-hosted environments
+# Uses pre-built image from ghcr.io/phioranex/openclaw-docker
 # 
 # Architecture:
-#   [Internet] → [Nginx:80,8000] → [Moltbot Gateway:18789]
+#   [Internet] → [Nginx:80,8000] → [OpenClaw Gateway:18789]
 
 services:
-  # Moltbot Gateway Service
-  moltbot-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: moltbot-gateway:local
-    container_name: moltbot-gateway
+  # OpenClaw Gateway Service
+  openclaw-gateway:
+    image: ghcr.io/phioranex/openclaw-docker:latest
+    container_name: openclaw-gateway
     restart: unless-stopped
     
-    # Copy config and run gateway
-    command: >
-      sh -c "
-        mkdir -p /data/.clawdbot &&
-        if [ -f /config/clawdbot.json ] && [ ! -f /data/.clawdbot/clawdbot.json ]; then 
-          cp /config/clawdbot.json /data/.clawdbot/clawdbot.json
-        fi &&
-        moltbot gateway --verbose
-      "
-    
     environment:
-      - NODE_ENV=production
-      - HOME=/data
-      - PATH=/usr/local/bin:/usr/bin:/bin
-      - CLAWDBOT_STATE_DIR=/data/.clawdbot
-      - CLAWDBOT_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
+      - HOME=/home/node
+      - TERM=xterm-256color
+      - OPENCLAW_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     
     volumes:
       # Persistent state (credentials, sessions, memory)
-      - moltbot-data:/data/.clawdbot
+      - openclaw-config:/home/node/.openclaw
       # Workspace for agent files
-      - moltbot-workspace:/data/clawd
-      # Config file (copied at startup if not exists)
-      - ./config/clawdbot.json:/config/clawdbot.json:ro
+      - openclaw-workspace:/home/node/.openclaw/workspace
+    
+    # Run the gateway with proper binding for container use
+    command: ["gateway", "--bind", "lan", "--port", "18789", "--verbose", "--allow-unconfigured"]
     
     # Only expose to internal network, nginx handles external traffic
     expose:
       - "18789"
     
     networks:
-      - moltbot-internal
+      - openclaw-internal
+    
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:18789/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     
     # Resource limits
     deploy:
@@ -61,7 +55,7 @@ services:
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: moltbot-nginx
+    container_name: openclaw-nginx
     restart: unless-stopped
     
     ports:
@@ -73,15 +67,15 @@ services:
     volumes:
       # Nginx configuration
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./config/moltbot-site.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/openclaw-site.conf:/etc/nginx/conf.d/default.conf:ro
       # Logs
       - nginx-logs:/var/log/nginx
     
     networks:
-      - moltbot-internal
+      - openclaw-internal
     
     depends_on:
-      - moltbot-gateway
+      - openclaw-gateway
     
     healthcheck:
       test: ["CMD", "nginx", "-t"]
@@ -89,39 +83,36 @@ services:
       timeout: 10s
       retries: 3
 
-  # Optional: Moltbot CLI container for management
-  moltbot-cli:
-    image: moltbot-gateway:local
-    container_name: moltbot-cli
+  # OpenClaw CLI container for management
+  openclaw-cli:
+    image: ghcr.io/phioranex/openclaw-docker:latest
+    container_name: openclaw-cli
     profiles:
       - cli
-    working_dir: /data
-    
-    command: bash
     
     environment:
-      - CLAWDBOT_STATE_DIR=/data/.clawdbot
-      - CLAWDBOT_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
-      - PATH=/usr/local/bin:/usr/bin:/bin
+      - HOME=/home/node
+      - OPENCLAW_GATEWAY_TOKEN=${GATEWAY_TOKEN:-changeme}
     
     volumes:
-      - moltbot-data:/data/.clawdbot
-      - moltbot-workspace:/data/clawd
+      - openclaw-config:/home/node/.openclaw
+      - openclaw-workspace:/home/node/.openclaw/workspace
     
     networks:
-      - moltbot-internal
+      - openclaw-internal
     
     stdin_open: true
     tty: true
+    init: true
 
 networks:
-  moltbot-internal:
+  openclaw-internal:
     driver: bridge
 
 volumes:
-  moltbot-data:
-    name: moltbot-data
-  moltbot-workspace:
-    name: moltbot-workspace
+  openclaw-config:
+    name: openclaw-config
+  openclaw-workspace:
+    name: openclaw-workspace
   nginx-logs:
-    name: moltbot-nginx-logs
+    name: openclaw-nginx-logs
